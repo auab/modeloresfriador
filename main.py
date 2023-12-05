@@ -12,7 +12,7 @@ def print_hi(name):
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
    # print_hi('PyCharm')
-    A = modelos.solve_one_dimensional_diffusion(0.01, 0.5, 0.1, 100, 500, 1000)
-    print(A)
+    solution_1 = modelos.solve_one_dimensional_diffusion(area=0.01, L=0.5, d_x=0.1, Ta=100, Tb=500, k=1000)
+    print(solution_1)
 
 # See PyCharm help at https://www.jetbrains.com/help/pycharm/
