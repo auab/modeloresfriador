@@ -11,7 +11,8 @@ class MyTestCase(unittest.TestCase):
         self.assertTrue(np.allclose(
                         modelos.solve_one_dimensional_diffusion(area=0.01, L=0.5, d_x=0.1,
                                                                 Ta=100, Tb=500, k=1000),
-                        np.array([140., 220., 300., 380., 460.])))
+                        np.array([140., 220., 300., 380., 460.])),
+                        'The base case is not correctly solved')
 
 
 
