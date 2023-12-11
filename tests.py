@@ -2,6 +2,7 @@ import unittest
 import numpy as np
 import modelos
 
+
 class MyTestCase(unittest.TestCase):
     def test_one_dimensional_diffusion_1(self):
         # Consider the problem of source - free heat conduction in an insulated rod
@@ -32,13 +33,14 @@ class MyTestCase(unittest.TestCase):
         mesh = {"L_x": 0.02, "d_x": 0.004, "area": 1}
         west_bound = {'condition': 'dirichlet','value': 100}
         east_bound = {'condition': 'dirichlet','value': 200}
-        material_props = {'k':0.5,'rho':1}
+        volumetric_source = {"q_dot":1e06}
+        material_props = {'k': 0.5,'rho': 1}
         self.assertTrue(np.allclose(
                         modelos.solve_one_dimensional_diffusion_convection(mesh=mesh,
                                                                 west_bound=west_bound,
                                                                 east_bound=east_bound,
                                                                 material_props=material_props,
-                                                                q_dot=1e06),
+                                                                volumetric_source=volumetric_source),
                         np.array([150., 218., 254., 258., 230.])),
                         'The diffusion case with source term is not correctly solved')
 
@@ -55,12 +57,13 @@ class MyTestCase(unittest.TestCase):
         west_bound = {'condition': 'dirichlet', 'value': 100}
         east_bound = {'condition': 'neumann'}
         material_props = {'k': 1, 'rho':1}
+        external_convection = {'perimeter':1, 'h':25, 'T_conv':20}
         self.assertTrue(np.allclose(
                         modelos.solve_one_dimensional_diffusion_convection(mesh=mesh,
                                                                 west_bound=west_bound,
                                                                 east_bound=east_bound,
                                                                 material_props=material_props,
-                                                                perimeter=1, h=25, T_conv=20),
+                                                                external_convection=external_convection),
                         np.array([64.22764228, 36.91056911, 26.50406504, 22.60162602, 21.30081301])),
                         'The diffusion case with external convection and neumann condition is not correctly solved')
 

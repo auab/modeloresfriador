@@ -1,91 +1,50 @@
 import numpy as np
 
 
-def solve_one_dimensional_diffusion(mesh=None, west_bound=None, east_bound=None, q_dot=0, h=0, perimeter=0,
-                                    T_conv=0, material_props=None):
-    if east_bound is None:
-        east_bound = {"condition": "dirichlet", "value": 0}
-    if west_bound is None:
-        west_bound = {"condition": "dirichlet", "value": 0}
-
-    n_x = int(mesh["L_x"] / mesh["d_x"])
-    thermal_resist = material_props["k"] * mesh["area"] / mesh["d_x"]
-    vol_heat_source = q_dot * mesh["area"] * mesh["d_x"]
-    convection_resist = h * perimeter * mesh["d_x"]
-    A_matrix = np.zeros((n_x, n_x))
-    b_vector = np.zeros(n_x)
-
-    for i in range(n_x):
-        # Left boundary
-        b_vector[i] = vol_heat_source + convection_resist * T_conv
-        if i != 0:
-            A_matrix[i, i - 1] = -thermal_resist
-        if i != (n_x - 1):
-            A_matrix[i, i + 1] = -thermal_resist
-
-        if i == 0:
-            if west_bound['condition'] == 'dirichlet':
-                A_matrix[i, i] = 3 * thermal_resist + convection_resist
-                b_vector[i] += 2 * thermal_resist * west_bound['value']
-            elif west_bound['condition'] == 'neumann':
-                A_matrix[i, i] = thermal_resist + convection_resist
-
-        # Right boundary
-        elif i == n_x - 1:
-            if east_bound['condition'] == 'dirichlet':
-                A_matrix[i, i] = 3 * thermal_resist + convection_resist
-                b_vector[i] += 2 * thermal_resist * east_bound['value']
-            elif east_bound['condition'] == 'neumann':
-                A_matrix[i, i] = thermal_resist + convection_resist
-        # Not a boundary
-        else:
-            A_matrix[i, i] = 2 * thermal_resist + convection_resist
-
-    return np.linalg.solve(A_matrix, b_vector)
-
-
-def solve_one_dimensional_diffusion_convection(mesh=None, west_bound=None, east_bound=None, q_dot=0, h=0, perimeter=0,
-                                                T_conv=0, material_props=None,velocity_field=None):
-    if east_bound is None:
-        east_bound = {"condition": "dirichlet", "value": 0}
-    if west_bound is None:
-        west_bound = {"condition": "dirichlet", "value": 0}
+def solve_one_dimensional_diffusion_convection(material_props, mesh, west_bound,
+                                               east_bound, external_convection=None, volumetric_source=None,
+                                               velocity_field=None):
     if velocity_field is None:
         velocity_field = {"u": 0}
+    if external_convection is None:
+        external_convection = {'perimeter': 0, 'h': 0, 'T_conv': 0}
+    if volumetric_source is None:
+        volumetric_source = {'q_dot': 0}
+
 
     n_x = int(mesh["L_x"] / mesh["d_x"])
     thermal_resist = material_props["k"] * mesh["area"] / mesh["d_x"]
-    vol_heat_source = q_dot * mesh["area"] * mesh["d_x"]
-    convection_resist = h * perimeter * mesh["d_x"]
-    F_e = material_props["rho"]*velocity_field["u"]*mesh["area"]
+    vol_heat_source = volumetric_source["q_dot"] * mesh["area"] * mesh["d_x"]
+    convection_resist = external_convection['h'] * external_convection['perimeter'] * mesh["d_x"]
+    F_e = material_props["rho"] * velocity_field["u"] * mesh["area"]
     F_w = material_props["rho"] * velocity_field["u"] * mesh["area"]
 
-    A_matrix = np.zeros((n_x, n_x))
-    b_vector = np.zeros(n_x)
+    A, b = np.zeros((n_x, n_x)), np.zeros(n_x)
 
     for i in range(n_x):
-        # Left boundary
-        b_vector[i] = vol_heat_source + convection_resist * T_conv
-        if i != 0:
-            A_matrix[i, i - 1] = -thermal_resist - np.max([F_w, 0])
-        if i != (n_x - 1):
-            A_matrix[i, i + 1] = -thermal_resist - np.max([-F_e, 0])
-
+        S_u = vol_heat_source + convection_resist * external_convection['T_conv']
+        S_p = -convection_resist
+        a_w = thermal_resist + np.max([F_w, 0])
+        a_e = thermal_resist + np.max([-F_e, 0])
         if i == 0:
+            a_w = 0
             if west_bound['condition'] == 'dirichlet':
-                A_matrix[i, i] = 3 * thermal_resist + convection_resist + np.max([F_w, 0]) + np.max([-F_e, 0])
-                b_vector[i] += (2 * thermal_resist + np.max([F_w, 0])) * west_bound['value']
-            elif west_bound['condition'] == 'neumann':
-                A_matrix[i, i] = thermal_resist + convection_resist + np.max([F_w, 0]) + np.max([-F_e, 0])
-
-        # Right boundary
+                S_p += -(2*thermal_resist + np.max([F_w, 0]))
+                S_u += (2 * thermal_resist + np.max([F_w, 0])) * west_bound['value']
         elif i == n_x - 1:
+            a_e = 0
             if east_bound['condition'] == 'dirichlet':
-                A_matrix[i, i] = 3 * thermal_resist + convection_resist + np.max([F_w, 0]) + np.max([-F_e, 0])
-                b_vector[i] += (2 * thermal_resist + np.max([-F_e, 0])) * east_bound['value']
-            elif east_bound['condition'] == 'neumann':
-                A_matrix[i, i] = thermal_resist + convection_resist + np.max([F_w, 0]) + np.max([-F_e, 0])
-        # Not a boundary
-        else:
-            A_matrix[i, i] = 2 * thermal_resist + convection_resist + np.max([F_w, 0]) + np.max([-F_e, 0])
-    return np.linalg.solve(A_matrix, b_vector)
+                S_p += -(2 * thermal_resist + np.max([-F_e, 0]))
+                S_u += (2 * thermal_resist + np.max([-F_e, 0])) * east_bound['value']
+
+        if i != 0:
+            A[i, i - 1] = -a_w
+        if i != (n_x - 1):
+            A[i, i + 1] = -a_e
+
+        A[i][i] = a_w+a_e-S_p + (F_e-F_w)
+        b[i] = S_u
+
+    return np.linalg.solve(A, b)
+
+
